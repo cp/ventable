@@ -194,6 +194,25 @@ describe Ventable do
       notified_observer.should be_true
     end
 
+    it "configures observers and calls lambda on exception" do
+      class TestEventObserver
+        def self.handle_test event
+          raise StandardError
+        end
+      end
+
+      handle_error = lambda do |error, observer|
+        $lambda_called = true
+      end
+
+      TestEvent.configure do
+        notifies TestEventObserver, on_error: handle_error
+      end
+
+      expect { TestEvent.new.fire! }.not_to raise_error
+      $lambda_called.should eq(true)
+    end
+
     it "configures observers with groups" do
       notified_observer = false
       called_transaction = false
