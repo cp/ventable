@@ -210,7 +210,7 @@ describe Ventable do
       end
 
       expect { TestEvent.new.fire! }.not_to raise_error
-      $lambda_called.should eq(true)
+      $lambda_called.should be_true
     end
 
     it "configures observers with groups" do

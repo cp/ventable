@@ -25,9 +25,17 @@ module ::Ventable
     def notify_observer_set(observer_set)
       observer_set.each do |observer_entry|
         if observer_entry.is_a?(Hash)
-          around_block = observer_entry[:around_block]
-          inside_block = -> { notify_observer_set(observer_entry[:observers]) }
-          around_block.call(inside_block)
+          if observer_entry.has_key?(:name)
+            around_block = observer_entry[:around_block]
+            inside_block = -> { notify_observer_set(observer_entry[:observers]) }
+            around_block.call(inside_block)
+          elsif observer_entry.has_key?(:on_error)
+            begin
+              notify_observer_set(observer_entry[:observers])
+            rescue => e
+              observer_entry[:on_error].call(e, observer_entry)
+            end
+          end
         elsif observer_entry
           notify_observer(observer_entry)
         else
@@ -69,8 +77,21 @@ module ::Ventable
           observer_set = observer_entry[:observers]
         end
         raise Ventable::Error.new("found nil observer in params #{observer_list.inspect}") if observer_list.any?{|l| l.nil?}
-        observer_list.compact.each { |o| observer_set << o } unless observer_list.empty?
-        observer_set << block if block
+        if options[:on_error]
+          error_handler(observer_list.compact, &options[:on_error]) unless observer_list.empty?
+          error_handler(block, &options[:on_error]) if block
+        else
+          observer_list.compact.each { |o| observer_set << o } unless observer_list.empty?
+          observer_set << block if block
+        end
+      end
+
+      def error_handler(observers, &block)
+        self.observers <<
+          {
+            observers: observers,
+            on_error: block
+          }
       end
 
       def group(name, &block)
